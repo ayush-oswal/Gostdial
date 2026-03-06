@@ -11,3 +11,5 @@ prisma/studio
 .claude
 
 node_modules
+
+.next
