@@ -1,15 +1,54 @@
-# Ignore virtual environment
-.venv
+# Dependencies
+node_modules/
+.venv/
+venv/
+env/
+lib/
+lib64/
+bin/
+include/
+share/
 
-__pycache__*
+# Next.js
+.next/
+out/
+build/
 
-# Ignore Prisma Studio
-prisma/studio
+# Prisma
+prisma/studio/
 
+# Environment variables
 .env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
 
-.claude
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-node_modules
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
 
-.next
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+.trunk_settings/
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
