@@ -1,0 +1,30 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+}
+
+enum CallStatus {
+  PENDING
+  SENT
+  ERROR
+}
+
+model Calls {
+  id            Int        @id @default(autoincrement())
+  to            String
+  prompt        String
+  humanNumber   String?
+  transcription String?
+  recordingFile String?
+  language      String?    @default("English")
+  status        CallStatus @default(PENDING)
+  scheduledTime DateTime
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}

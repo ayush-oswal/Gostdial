@@ -1,0 +1,13 @@
+# Ignore virtual environment
+.venv
+
+__pycache__*
+
+# Ignore Prisma Studio
+prisma/studio
+
+.env
+
+.claude
+
+node_modules

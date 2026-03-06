@@ -1,0 +1,11 @@
+{
+    "trunk": {
+        "name": "voice_agent_ayush_twilio",
+        "address": "voice-agent-ayush.pstn.twilio.com",
+        "numbers": [
+            "+16802194434"
+        ],
+        "auth_username": "voice_agent_ayush_twilio",
+        "auth_password": "x5g4PzU854qDzpA"
+    }
+}

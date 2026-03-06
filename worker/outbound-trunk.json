@@ -1,0 +1,11 @@
+{
+    "trunk": {
+        "name": "voice_agent_ayush_outbound_trunk",
+        "address": "5400ad87.sip.vobiz.ai",
+        "numbers": [
+            "+911171366938"
+        ],
+        "auth_username": "voice_agent_ayush",
+        "auth_password": "K@bootar2207"
+    }
+}
