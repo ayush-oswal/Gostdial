@@ -14,7 +14,7 @@ interface StatItem {
 const STATS: StatItem[] = [
   { value: 10000, suffix: '+', label: 'Calls Queued', note: '(obviously fake, just looked good)' },
   { value: 99, suffix: '%', label: 'Uptime', note: '(theoretical)' },
-  { value: 1, suffix: '', label: 'Language', note: 'English. to roast you in.' },
+  { value: 1, suffix: '', label: 'Language', note: 'English (for now). to roast you in.' },
   { value: 0, suffix: '', label: 'Human Feelings', note: 'about this' },
 ];
 

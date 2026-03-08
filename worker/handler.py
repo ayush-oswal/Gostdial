@@ -13,12 +13,15 @@ import asyncio
 import json
 import logging
 import os
+import tempfile
 
 import asyncpg
+import boto3
 from dotenv import load_dotenv
 
 from livekit import agents, api, rtc
 from livekit.agents import AgentServer, AgentSession, Agent, ConversationItemAddedEvent, JobContext, room_io
+from livekit.agents.utils.audio import audio_frames_from_file
 from livekit.plugins import deepgram, google, noise_cancellation, silero
 
 load_dotenv()
@@ -107,6 +110,28 @@ async def _update_call_status(call_id: int | None, status: str) -> None:
         logger.error("Failed to update call_id=%s status: %s", call_id, exc)
 
 
+async def _download_recording(key: str) -> str:
+    """Download a recording from S3 to a local temp file. Returns the local path."""
+    bucket = os.environ["S3_BUCKET_NAME"]
+    region = os.getenv("AWS_REGION", "us-east-1")
+
+    def _sync_download() -> str:
+        s3 = boto3.client(
+            "s3",
+            region_name=region,
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        )
+        suffix = "." + key.rsplit(".", 1)[-1] if "." in key else ".webm"
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        tmp.close()
+        s3.download_file(bucket, key, tmp.name)
+        return tmp.name
+
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _sync_download)
+
+
 server = AgentServer()
 
 
@@ -180,6 +205,15 @@ async def handle_job(ctx: JobContext) -> None:
 
     ctx.add_shutdown_callback(_persist_transcript)
 
+    # ── Pre-download recording while the phone is ringing ────────────────────
+    local_recording: str | None = None
+    if recordingFile:
+        try:
+            local_recording = await _download_recording(recordingFile)
+            logger.info("Recording pre-downloaded for call_id=%s  key=%s", call_id, recordingFile)
+        except Exception as exc:
+            logger.warning("Failed to pre-download recording for call_id=%s: %s", call_id, exc)
+
     # ── Dial the outbound number ─────────────────────────────────────────────
     sip_trunk_id = os.environ["SIP_OUTBOUND_TRUNK_ID_TWILIO"]
     try:
@@ -202,35 +236,70 @@ async def handle_job(ctx: JobContext) -> None:
             exc.metadata.get("sip_status"),
         )
         await _update_call_status(call_id, "ERROR")
+        if local_recording:
+            try:
+                os.unlink(local_recording)
+            except OSError:
+                pass
         await session.aclose()
         return
 
-    # ── 90-second hard duration guard ───────────────────────────────────────
-    # Sleep 65 s, leaving 25 s for the goodbye phrase + hangup = 90 s max total.
-    GOODBYE_BUDGET = 25  # seconds reserved for TTS generation + audio playback
+    # ── Hard duration guard ──────────────────────────────────────────────────
+    # Fires at CALL_DURATION seconds. Attempts a direct TTS goodbye (no LLM),
+    # then forces hangup after 10 s regardless of whether it finished.
+    CALL_DURATION = 30
+
     async def _duration_guard() -> None:
-        await asyncio.sleep(90 - GOODBYE_BUDGET)
+        await asyncio.sleep(CALL_DURATION)
         logger.info("Duration limit reached — call_id=%s, saying goodbye", call_id)
         try:
+            session.interrupt(force=True)
             await asyncio.wait_for(
-                session.generate_reply(
-                    instructions=(
-                        "The call time limit has been reached. "
-                        "Say a warm, brief goodbye and thank the person for their time. "
-                        "Do not ask any follow-up questions."
-                    ),
+                session.say(
+                    "The call time limit has been reached. Thank you so much for your time. Goodbye!",
                     allow_interruptions=False,
                 ),
-                timeout=float(GOODBYE_BUDGET),
+                timeout=10.0,
             )
         except asyncio.TimeoutError:
-            logger.warning("Goodbye reply timed out — call_id=%s, forcing hangup", call_id)
+            logger.warning("Goodbye timed out — call_id=%s, forcing hangup", call_id)
         except Exception as exc:
-            logger.warning("Goodbye generation error: %s", exc)
-        await _hangup(ctx)
+            logger.warning("Goodbye error — call_id=%s: %s", call_id, exc)
+        try:
+            await _hangup(ctx)
+        except Exception as exc:
+            logger.warning("Hangup error (room may already be gone) — call_id=%s: %s", call_id, exc)
         await session.aclose()
 
     asyncio.create_task(_duration_guard())
+
+    # ── Play pre-recorded greeting if provided ───────────────────────────────
+    if local_recording:
+        try:
+            logger.info("Playing recording for call_id=%s  key=%s", call_id, recordingFile)
+            await session.say(
+                "",
+                audio=audio_frames_from_file(local_recording, sample_rate=24000, num_channels=1),
+                allow_interruptions=False,
+            )
+        except Exception as exc:
+            logger.warning("Failed to play recording for call_id=%s: %s", call_id, exc)
+        finally:
+            try:
+                os.unlink(local_recording)
+            except OSError as e:
+                logger.warning("Failed to delete temp recording %s: %s", local_recording, e)
+
+    # ── Hand off to the live agent ───────────────────────────────────────────
+    # Whether or not a recording played, the agent now takes over the call.
+    # instructions are required here since there's no prior user message to respond to.
+    await session.generate_reply(
+        instructions=(
+            "The introduction has just finished. "
+            "Continue the conversation naturally based on your instructions. "
+            "Greet the person and proceed with the purpose of the call."
+        )
+    )
 
 
 if __name__ == "__main__":
