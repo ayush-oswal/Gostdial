@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getUploadPresignedUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-const MAX_DURATION = 60; // seconds
+const MAX_DURATION = 50; // seconds
 
 interface Props {
   onKeyChange: (key: string) => void;
@@ -83,15 +83,16 @@ export function AudioRecorder({ onKeyChange }: Props) {
   async function uploadBlob(blob: Blob) {
     setState('uploading');
     try {
-      const { url, key } = await getUploadPresignedUrl();
+      const { url, fields, key } = await getUploadPresignedUrl();
 
-      const res = await fetch(url, {
-        method: 'PUT',
-        body: blob,
-        headers: { 'Content-Type': 'audio/webm' },
-      });
+      const form = new FormData();
+      for (const [k, v] of Object.entries(fields)) form.append(k, v);
+      form.append('file', blob);
 
-      if (!res.ok) throw new Error(`S3 upload failed (${res.status})`);
+      const res = await fetch(url, { method: 'POST', body: form });
+
+      // S3 presigned POST returns 204 on success
+      if (res.status !== 204 && !res.ok) throw new Error(`S3 upload failed (${res.status})`);
 
       setUploadedKey(key);
       onKeyChange(key);
@@ -121,10 +122,10 @@ export function AudioRecorder({ onKeyChange }: Props) {
         state === 'recording'
           ? 'border-red-400 dark:border-red-500'
           : state === 'done'
-          ? 'border-green-400 dark:border-green-600'
-          : state === 'error'
-          ? 'border-red-300 dark:border-red-700'
-          : 'border-slate-200 dark:border-slate-700',
+            ? 'border-green-400 dark:border-green-600'
+            : state === 'error'
+              ? 'border-red-300 dark:border-red-700'
+              : 'border-slate-200 dark:border-slate-700',
       )}
     >
       <AnimatePresence mode="wait">

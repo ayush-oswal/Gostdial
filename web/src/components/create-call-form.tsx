@@ -36,7 +36,6 @@ export function CreateCallForm({ timezone, onSuccess }: Props) {
 
   const [form, setForm] = useState(() => ({
     to: '',
-    humanNumber: '',
     language: 'English',
     scheduledTime: nowInTz(timezone),
     recordingFile: '',
@@ -65,13 +64,12 @@ export function CreateCallForm({ timezone, onSuccess }: Props) {
         to: form.to,
         prompt: form.prompt,
         scheduledTime: utcDate.toISOString(),
-        humanNumber: form.humanNumber || undefined,
         language: form.language,
         recordingFile: form.recordingFile || undefined,
       });
 
       setStatus('success');
-      setForm({ to: '', humanNumber: '', language: 'English', scheduledTime: '', recordingFile: '', prompt: '' });
+      setForm({ to: '', language: 'English', scheduledTime: '', recordingFile: '', prompt: '' });
       onSuccess();
       setTimeout(() => setStatus('idle'), 3000);
     } catch (err) {
@@ -128,20 +126,6 @@ export function CreateCallForm({ timezone, onSuccess }: Props) {
                     placeholder="+1 555 000 0000"
                     value={form.to}
                     onChange={(e) => set('to', e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-
-                {/* Human fallback */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                    Human Fallback
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+1 555 000 0001"
-                    value={form.humanNumber}
-                    onChange={(e) => set('humanNumber', e.target.value)}
                     className={inputClass}
                   />
                 </div>

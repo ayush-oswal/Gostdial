@@ -13,15 +13,17 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 PRESIGNED_URL_TTL = 300  # 5 minutes
 
 
-class PresignedUrlResponse(BaseModel):
+class PresignedPostResponse(BaseModel):
     url: str
+    fields: dict
     key: str
     max_bytes: int
 
 
-@router.post("/presigned-url", response_model=PresignedUrlResponse)
+@router.post("/presigned-url", response_model=PresignedPostResponse)
 async def get_presigned_url():
-    """Return a short-lived presigned S3 PUT URL and the object key for a recording upload."""
+    """Return a short-lived presigned S3 POST policy and the object key for a recording upload.
+    The content-length-range condition is enforced by S3, preventing oversized uploads."""
     bucket = os.getenv("S3_BUCKET_NAME")
     region = os.getenv("AWS_REGION", "us-east-1")
 
@@ -38,17 +40,18 @@ async def get_presigned_url():
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
         )
 
-        url = s3.generate_presigned_url(
-            ClientMethod="put_object",
-            Params={
-                "Bucket": bucket,
-                "Key": key,
-                "ContentType": "audio/webm",
-            },
+        presigned = s3.generate_presigned_post(
+            Bucket=bucket,
+            Key=key,
+            Fields={"Content-Type": "audio/webm"},
+            Conditions=[
+                {"Content-Type": "audio/webm"},
+                ["content-length-range", 1, MAX_UPLOAD_BYTES],
+            ],
             ExpiresIn=PRESIGNED_URL_TTL,
         )
 
-        return {"url": url, "key": key, "max_bytes": MAX_UPLOAD_BYTES}
+        return {"url": presigned["url"], "fields": presigned["fields"], "key": key, "max_bytes": MAX_UPLOAD_BYTES}
 
     except (BotoCoreError, ClientError) as exc:
         raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL: {exc}")

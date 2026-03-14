@@ -95,22 +95,6 @@ export function CallModal({ call, timezone, onClose }: Props) {
                   <Field icon={Clock}    label="Scheduled Time" value={formatDateTZ(call.scheduledTime, timezone)} />
                   <Field icon={Calendar} label="Created At"     value={formatDateTZ(call.createdAt, timezone)} />
                   <Field icon={Calendar} label="Updated At"     value={formatDateTZ(call.updatedAt, timezone)} />
-                  {call.recordingFile && (
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
-                        <FileAudio size={12} />
-                        Recording
-                      </div>
-                      <a
-                        href={call.recordingFile}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium truncate"
-                      >
-                        Open Recording ↗
-                      </a>
-                    </div>
-                  )}
                 </div>
 
                 {/* Prompt */}
@@ -123,6 +107,21 @@ export function CallModal({ call, timezone, onClose }: Props) {
                     {call.prompt}
                   </div>
                 </div>
+
+                {/* Call Recording */}
+                {call.callRecordingKey && (
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">
+                      <FileAudio size={12} />
+                      Call Recording
+                    </div>
+                    <audio
+                      controls
+                      src={call.callRecordingKey}
+                      className="w-full rounded-xl"
+                    />
+                  </div>
+                )}
 
                 {/* Transcription */}
                 <div>

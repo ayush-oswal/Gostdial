@@ -88,6 +88,28 @@ async def _save_transcript(call_id: int | None, transcript: str) -> None:
         logger.error("Failed to save transcript for call_id=%s: %s", call_id, exc)
 
 
+async def _save_recording_key(call_id: int | None, key: str) -> None:
+    if call_id is None:
+        return
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        logger.warning("DATABASE_URL not set; skipping recording key save")
+        return
+    try:
+        conn = await asyncpg.connect(database_url)
+        try:
+            await conn.execute(
+                'UPDATE "Calls" SET "callRecordingKey" = $1, "updatedAt" = NOW() WHERE id = $2',
+                key,
+                call_id,
+            )
+            logger.info("call_id=%s recording key saved: %s", call_id, key)
+        finally:
+            await conn.close()
+    except Exception as exc:
+        logger.error("Failed to save recording key for call_id=%s: %s", call_id, exc)
+
+
 async def _update_call_status(call_id: int | None, status: str) -> None:
     if call_id is None:
         return
@@ -243,6 +265,44 @@ async def handle_job(ctx: JobContext) -> None:
                 pass
         await session.aclose()
         return
+
+    # ── Start egress recording to S3 ────────────────────────────────────────
+    egress_id: str | None = None
+    recording_key = f"call-recordings/call-{call_id}.mp3"
+    try:
+        egress_info = await ctx.api.egress.start_room_composite_egress(
+            api.RoomCompositeEgressRequest(
+                room_name=ctx.room.name,
+                audio_only=True,
+                file_outputs=[
+                    api.EncodedFileOutput(
+                        file_type=api.EncodedFileType.MP3,
+                        filepath=f"call-recordings/call-{call_id}",
+                        s3=api.S3Upload(
+                            access_key=os.getenv("AWS_ACCESS_KEY_ID", ""),
+                            secret=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+                            region=os.getenv("AWS_REGION", "us-east-1"),
+                            bucket=os.environ["S3_BUCKET_NAME"],
+                        ),
+                    )
+                ],
+            )
+        )
+        egress_id = egress_info.egress_id
+        logger.info("Egress started — call_id=%s  egress_id=%s  key=%s", call_id, egress_id, recording_key)
+        await _save_recording_key(call_id, recording_key)
+    except Exception as exc:
+        logger.error("Failed to start egress for call_id=%s: %s", call_id, exc)
+
+    async def _stop_egress() -> None:
+        if egress_id:
+            try:
+                await ctx.api.egress.stop_egress(api.StopEgressRequest(egress_id=egress_id))
+                logger.info("Egress stopped — call_id=%s  egress_id=%s", call_id, egress_id)
+            except Exception as exc:
+                logger.warning("Failed to stop egress for call_id=%s: %s", call_id, exc)
+
+    ctx.add_shutdown_callback(_stop_egress)
 
     # ── Hard duration guard ──────────────────────────────────────────────────
     # Fires at CALL_DURATION seconds. Attempts a direct TTS goodbye (no LLM),

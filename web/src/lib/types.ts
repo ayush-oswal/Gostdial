@@ -7,6 +7,7 @@ export interface Call {
   humanNumber: string | null;
   transcription: string | null;
   recordingFile: string | null;
+  callRecordingKey: string | null;
   language: string | null;
   status: CallStatus;
   scheduledTime: string;

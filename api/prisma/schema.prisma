@@ -16,15 +16,16 @@ enum CallStatus {
 }
 
 model Calls {
-  id            Int        @id @default(autoincrement())
-  to            String
-  prompt        String
-  humanNumber   String?
-  transcription String?
-  recordingFile String?
-  language      String?    @default("English")
-  status        CallStatus @default(PENDING)
-  scheduledTime DateTime
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id               Int        @id @default(autoincrement())
+  to               String
+  prompt           String
+  humanNumber      String?
+  transcription    String?
+  recordingFile    String?
+  language         String?    @default("English")
+  status           CallStatus @default(PENDING)
+  callRecordingKey String?
+  scheduledTime    DateTime
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 }

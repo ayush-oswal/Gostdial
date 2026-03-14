@@ -20,6 +20,7 @@ class CallResponse(BaseModel):
     humanNumber: Optional[str] = None
     transcription: Optional[str] = None
     recordingFile: Optional[str] = None
+    callRecordingKey: Optional[str] = None
     language: Optional[str] = None
     status: CallStatus
     scheduledTime: datetime

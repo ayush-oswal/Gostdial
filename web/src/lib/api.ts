@@ -20,7 +20,7 @@ export async function getCalls(params: {
   return res.json();
 }
 
-export async function getUploadPresignedUrl(): Promise<{ url: string; key: string; max_bytes: number }> {
+export async function getUploadPresignedUrl(): Promise<{ url: string; fields: Record<string, string>; key: string; max_bytes: number }> {
   const res = await fetch(`${API_BASE}/upload/presigned-url`, { method: 'POST' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

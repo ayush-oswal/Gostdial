@@ -1,10 +1,41 @@
+import os
 from datetime import datetime
 from typing import Optional
 
+import boto3
 from fastapi import APIRouter, HTTPException, Query
 from db import db
 from models import CallCreate, CallResponse, PaginatedCallResponse
 from prisma.enums import CallStatus
+
+PRESIGNED_GET_TTL = 3600  # 1 hour
+
+
+def _presigned_get_url(key: str) -> str | None:
+    bucket = os.getenv("S3_BUCKET_NAME")
+    if not bucket:
+        return None
+    try:
+        s3 = boto3.client(
+            "s3",
+            region_name=os.getenv("AWS_REGION", "us-east-1"),
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        )
+        return s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket, "Key": key},
+            ExpiresIn=PRESIGNED_GET_TTL,
+        )
+    except Exception:
+        return None
+
+
+def _enrich(call) -> CallResponse:
+    data = CallResponse.model_validate(call)
+    if data.callRecordingKey:
+        data.callRecordingKey = _presigned_get_url(data.callRecordingKey) or data.callRecordingKey
+    return data
 
 router = APIRouter(prefix="/calls", tags=["calls"])
 
@@ -22,7 +53,7 @@ async def create_call(payload: CallCreate):
                 "recordingFile": payload.recordingFile
             }
         )
-        return call
+        return _enrich(call)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -70,7 +101,7 @@ async def get_calls(
             "total": total,
             "page": page,
             "pageSize": pageSize,
-            "items": calls
+            "items": [_enrich(c) for c in calls],
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
