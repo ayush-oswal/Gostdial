@@ -167,7 +167,7 @@ export function CreateCallForm({ timezone, onSuccess }: Props) {
               {/* Recording file */}
               <div className="flex flex-col gap-1.5 mt-4">
                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                  Recording (optional, max 1 min) Will be played when the call is answered or not answered (voicemail)
+                  Recording (optional, max 30 sec) Will be played when the call is answered or not answered (voicemail)
                 </label>
                 <AudioRecorder onKeyChange={(key) => set('recordingFile', key)} />
               </div>

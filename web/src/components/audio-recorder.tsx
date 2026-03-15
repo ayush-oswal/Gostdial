@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getUploadPresignedUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-const MAX_DURATION = 50; // seconds
+const MAX_DURATION = 30; // seconds
 
 interface Props {
   onKeyChange: (key: string) => void;
@@ -145,7 +145,7 @@ export function AudioRecorder({ onKeyChange }: Props) {
               <Mic size={13} />
               Record Audio
             </button>
-            <span className="text-xs text-slate-400 dark:text-slate-500">Max 1 minute</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">Max 30 seconds</span>
           </motion.div>
         )}
 

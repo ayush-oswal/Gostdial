@@ -13,6 +13,7 @@ import asyncio
 import json
 import logging
 import os
+import random
 import tempfile
 
 import asyncpg
@@ -237,7 +238,7 @@ async def handle_job(ctx: JobContext) -> None:
             logger.warning("Failed to pre-download recording for call_id=%s: %s", call_id, exc)
 
     # ── Dial the outbound number ─────────────────────────────────────────────
-    sip_trunk_id = os.environ["SIP_OUTBOUND_TRUNK_ID_TWILIO"]
+    sip_trunk_id = os.environ[random.choice(["SIP_OUTBOUND_TRUNK_ID_TWILIO_1", "SIP_OUTBOUND_TRUNK_ID_TWILIO_2"])]
     try:
         await ctx.api.sip.create_sip_participant(
             api.CreateSIPParticipantRequest(
@@ -307,7 +308,7 @@ async def handle_job(ctx: JobContext) -> None:
     # ── Hard duration guard ──────────────────────────────────────────────────
     # Fires at CALL_DURATION seconds. Attempts a direct TTS goodbye (no LLM),
     # then forces hangup after 10 s regardless of whether it finished.
-    CALL_DURATION = 30
+    CALL_DURATION = 45
 
     async def _duration_guard() -> None:
         await asyncio.sleep(CALL_DURATION)
